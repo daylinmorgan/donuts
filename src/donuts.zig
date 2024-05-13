@@ -31,7 +31,7 @@ pub fn Donuts(comptime stream: anytype) type {
         /// stream write lock
         lock: std.Thread.Mutex,
         /// stop flag
-        running_flag: std.atomic.Atomic(bool),
+        running_flag: std.atomic.Value(bool),
         ///
         render_thread: ?std.Thread = null,
 
@@ -78,7 +78,7 @@ pub fn Donuts(comptime stream: anytype) type {
                 .frames = frames,
                 .frame_rate = @as(u64, @intCast(interval)) * time.ns_per_ms,
                 .lock = std.Thread.Mutex{},
-                .running_flag = std.atomic.Atomic(bool).init(false),
+                .running_flag = std.atomic.Value(bool).init(false),
                 .sep = options.sep,
                 .spinner_style = options.spinner_style,
                 .message_style = options.message_style,
@@ -100,7 +100,7 @@ pub fn Donuts(comptime stream: anytype) type {
             // hide curosr
             try self.hideCursor();
 
-            self.running_flag.store(true, .SeqCst);
+            self.running_flag.store(true, .seq_cst);
 
             self.render_thread = try std.Thread.spawn(.{}, render, .{self});
         }
@@ -112,7 +112,7 @@ pub fn Donuts(comptime stream: anytype) type {
             symbol_style: ?AnsiStyle = null,
             message_style: ?AnsiStyle = null,
         }) !void {
-            if (!self.running_flag.load(.SeqCst)) {
+            if (!self.running_flag.load(.seq_cst)) {
                 return error.NotStarted;
             }
             if (self.render_thread == null) {
@@ -120,7 +120,7 @@ pub fn Donuts(comptime stream: anytype) type {
             }
 
             // stop and wait render thread
-            self.running_flag.store(false, .SeqCst);
+            self.running_flag.store(false, .seq_cst);
             self.render_thread.?.join();
 
             // show user's cursor
@@ -191,7 +191,7 @@ pub fn Donuts(comptime stream: anytype) type {
             var frame_idx: usize = 0;
 
             while (true) : (frame_idx += 1) {
-                if (!self.running_flag.load(.SeqCst)) {
+                if (!self.running_flag.load(.seq_cst)) {
                     return;
                 }
                 if (frame_idx > self.frames.len - 1) {
